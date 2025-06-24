@@ -106,7 +106,11 @@ bool FImGuiOutputLogFilter::DrawCategoryFilters()
 		if (ImGui::BeginMenu("Categories"))
 		{
 			CategoryFilter.Draw("", "Start typing to search");
-			ImGui::BeginChild("CategoriesChild", ImVec2(0.f, 400.f), ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+			const float DesiredListHeight = ImGui::GetTextLineHeightWithSpacing() * Context.Categories.Num();
+			const float ListHeight = FMath::Min(400.f, DesiredListHeight);
+			
+			ImGui::BeginChild("CategoriesChild", ImVec2(0.f, ListHeight), ImGuiChildFlags_None,
+				DesiredListHeight > ListHeight ? ImGuiWindowFlags_AlwaysVerticalScrollbar : ImGuiWindowFlags_None);
 
 			for (auto& [Category, bIsEnabled] : Context.Categories)
 			{
