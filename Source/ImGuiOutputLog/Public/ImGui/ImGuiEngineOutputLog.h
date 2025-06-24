@@ -51,17 +51,14 @@ public:
 	UFUNCTION(BlueprintPure, Category="ImGui|Engine Log")
 	bool IsActive() const;
 
-	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log",
-		meta=(Bitmask, BitmaskEnum="EImGuiOutputLogMessageElement"))
-	void SetDisplayedElements(TEnumAsByte<EImGuiOutputLogMessageElement> Elements);
+	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log")
+	void SetDisplayedElements(UPARAM(meta=(Bitmask, BitmaskEnum="EImGuiOutputLogMessageElement")) int32 Elements);
 	
-	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log",
-		meta=(Bitmask, BitmaskEnum="EImGuiOutputLogMessageElement"))
-	void AddDisplayedElements(TEnumAsByte<EImGuiOutputLogMessageElement> Elements);
+	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log")
+	void AddDisplayedElements(UPARAM(meta=(Bitmask, BitmaskEnum="EImGuiOutputLogMessageElement")) int32 Elements);
 	
-	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log",
-		meta=(Bitmask, BitmaskEnum="EImGuiOutputLogMessageElement"))
-	void RemovedDisplayedElements(TEnumAsByte<EImGuiOutputLogMessageElement> Elements);
+	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log")
+	void RemovedDisplayedElements(UPARAM(meta=(Bitmask, BitmaskEnum="EImGuiOutputLogMessageElement")) int32 Elements);
 	
 	UFUNCTION(BlueprintPure, Category="ImGui|Engine Log")
 	TEnumAsByte<EImGuiOutputLogMessageElement> GetDisplayedElements() const;

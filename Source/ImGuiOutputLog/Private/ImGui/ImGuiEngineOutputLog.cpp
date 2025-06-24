@@ -37,9 +37,9 @@ public:
 public:
 	bool IsActive() const;
 	void SetActiveState(bool bInIsActive);
-	void SetDisplayedElements(EImGuiOutputLogMessageElement Elements);
-	void AddDisplayedElements(EImGuiOutputLogMessageElement Elements);
-	void RemovedDisplayedElements(EImGuiOutputLogMessageElement Elements);
+	void SetDisplayedElements(int32 Elements);
+	void AddDisplayedElements(int32 Elements);
+	void RemovedDisplayedElements(int32 Elements);
 	EImGuiOutputLogMessageElement GetDisplayedElements() const;
 
 	FImGuiModule& GetImGuiModule() const;
@@ -225,17 +225,17 @@ bool UImGuiEngineOutputLog::IsActive() const
 	return Impl->IsActive();
 }
 
-void UImGuiEngineOutputLog::SetDisplayedElements(TEnumAsByte<EImGuiOutputLogMessageElement> Elements)
+void UImGuiEngineOutputLog::SetDisplayedElements(int32 Elements)
 {
 	Impl->SetDisplayedElements(Elements);
 }
 
-void UImGuiEngineOutputLog::AddDisplayedElements(TEnumAsByte<EImGuiOutputLogMessageElement> Elements)
+void UImGuiEngineOutputLog::AddDisplayedElements(int32 Elements)
 {
 	Impl->AddDisplayedElements(Elements);
 }
 
-void UImGuiEngineOutputLog::RemovedDisplayedElements(TEnumAsByte<EImGuiOutputLogMessageElement> Elements)
+void UImGuiEngineOutputLog::RemovedDisplayedElements(int32 Elements)
 {
 	Impl->RemovedDisplayedElements(Elements);
 }
@@ -261,7 +261,7 @@ void FImGuiEngineLogImpl::SetActiveState(bool bInIsActive)
 	}
 }
 
-void FImGuiEngineLogImpl::SetDisplayedElements(EImGuiOutputLogMessageElement Elements)
+void FImGuiEngineLogImpl::SetDisplayedElements(int32 Elements)
 {
 	if (ActiveElements != Elements)
 	{
@@ -270,7 +270,7 @@ void FImGuiEngineLogImpl::SetDisplayedElements(EImGuiOutputLogMessageElement Ele
 	}
 }
 
-void FImGuiEngineLogImpl::AddDisplayedElements(EImGuiOutputLogMessageElement Elements)
+void FImGuiEngineLogImpl::AddDisplayedElements(int32 Elements)
 {
 	if (ActiveElements | Elements)
 	{
@@ -279,7 +279,7 @@ void FImGuiEngineLogImpl::AddDisplayedElements(EImGuiOutputLogMessageElement Ele
 	}
 }
 
-void FImGuiEngineLogImpl::RemovedDisplayedElements(EImGuiOutputLogMessageElement Elements)
+void FImGuiEngineLogImpl::RemovedDisplayedElements(int32 Elements)
 {
 	if (ActiveElements & ~Elements)
 	{
