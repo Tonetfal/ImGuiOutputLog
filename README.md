@@ -9,9 +9,9 @@ Unreal Engine's native output log, but using Dear ImGui.
 
 ## Preview
 
-![Preview01](imgui_outputlog_preview_01.png)
+![Preview01](Docs/imgui_outputlog_preview_01.png)
 
-![Preview02](imgui_outputlog_preview_02.png)
+![Preview02](Docs/imgui_outputlog_preview_02.png)
 
 ## Usage
 
@@ -19,6 +19,6 @@ The plugin comes with Game Instance subsystem that you can activate or deactivat
 accordingly. Once activated, it'll appear on the screen and ImGui will get the inputs, so game or UMG will not get any. 
 To deactivate, press the X at the top right. Alternatively, you can call SetActive with a false.
 
-![Use Example](imgui_outputlog_use.png)
+![Use Example](Docs/imgui_outputlog_use.png)
 
-![Settings](imgui_outputlog_settings.png)
+![Settings](Docs/imgui_outputlog_settings.png)
