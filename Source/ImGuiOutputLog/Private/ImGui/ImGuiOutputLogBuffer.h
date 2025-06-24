@@ -10,7 +10,7 @@
 /**
  *
  */
-UCLASS()
+UCLASS(NotBlueprintType)
 class UImGuiOutputLogBuffer
 	: public UGameInstanceSubsystem
 	, public FOutputDevice

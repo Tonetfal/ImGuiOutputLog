@@ -5,10 +5,10 @@
 #include "ImGui/ImGuiLogVerbosity.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
-#include "ImGuiEngineLog.generated.h"
+#include "ImGuiEngineOutputLog.generated.h"
 
-UCLASS()
-class IMGUIOUTPUTLOG_API UImGuiEngineLog
+UCLASS(DisplayName="ImGui Engine Output Log")
+class IMGUIOUTPUTLOG_API UImGuiEngineOutputLog
 	: public UGameInstanceSubsystem
 	, public FTickableGameObject
 {
@@ -23,7 +23,7 @@ public:
 	};
 
 public:
-	virtual ~UImGuiEngineLog() override;
+	virtual ~UImGuiEngineOutputLog() override;
 	
 	static bool HasInstance(const UObject* ContextObject);
 	static ThisClass& Get(const UObject* ContextObject);
@@ -43,7 +43,7 @@ public:
 	//~End of FTickableGameObject Interface
 
 	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log")
-	void SetActiveState(bool bInIsActive);
+	void SetActiveState(UPARAM(DisplayName="Is Active") bool bInIsActive);
 	
 	void SetDisplayedElements(EMessageElement Elements);
 	void AddDisplayedElements(EMessageElement Elements);
@@ -57,16 +57,23 @@ private:
 	uint32 LastFrameNumberWeTicked = INDEX_NONE;
 };
 
-UCLASS(Config="Engine", DefaultConfig)
-class IMGUIOUTPUTLOG_API UImGuiEngineLogSettings
+UCLASS(Config="ImGui", DefaultConfig, DisplayName="ImGui: Output Log")
+class IMGUIOUTPUTLOG_API UImGuiEngineOutputLogSettings
 	: public UDeveloperSettings
 {
 	GENERATED_BODY()
 
 public:
-	UImGuiEngineLogSettings();
+	UImGuiEngineOutputLogSettings();
+
+	//~UDeveloperSettings Interface
+	virtual FName GetCategoryName() const override;
+	//~End of UDeveloperSettings Interface
 
 public:
 	UPROPERTY(Config, EditAnywhere)
 	TMap<EImGuiLogVerbosity, FLinearColor> Colors;
+	
+	UPROPERTY(Config, EditAnywhere)
+	bool bEnabledInputOnActive = true;
 };

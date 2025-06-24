@@ -1,7 +1,8 @@
 // Author: Antonio Sidenko (Tonetfal), June 2025
 
-#include "ImGui/ImGuiEngineLog.h"
+#include "ImGui/ImGuiEngineOutputLog.h"
 
+#include "ImGuiModule.h"
 #include "imgui_internal.h"
 #include "ImGui/ImGuiOutputLogFilter.h"
 #include "ImGui/ImGuiOutputLogMessage.h"
@@ -26,15 +27,17 @@ public:
 
 public:	
 	void SetActiveState(bool bInIsActive);
-	void SetDisplayedElements(UImGuiEngineLog::EMessageElement Elements);
-	void AddDisplayedElements(UImGuiEngineLog::EMessageElement Elements);
-	void RemovedDisplayedElements(UImGuiEngineLog::EMessageElement Elements);
+	void SetDisplayedElements(UImGuiEngineOutputLog::EMessageElement Elements);
+	void AddDisplayedElements(UImGuiEngineOutputLog::EMessageElement Elements);
+	void RemovedDisplayedElements(UImGuiEngineOutputLog::EMessageElement Elements);
+
+	FImGuiModule& GetImGuiModule() const;
 
 public:
 	UImGuiOutputLogBuffer* LogBuffer = nullptr;
 		
 	bool bIsActive = false;
-	uint8 ActiveElements = UImGuiEngineLog::EMessageElement::Category;
+	uint8 ActiveElements = UImGuiEngineOutputLog::EMessageElement::Category;
 	bool bElementsDirty = true;
 
 	TArray<ImGui::Private::TMessageRef> Messages;
@@ -50,11 +53,11 @@ FImGuiEngineLogImpl::FImGuiEngineLogImpl()
 
 bool FImGuiEngineLogImpl::Tick()
 {
-	bool bIsOpen = true;
-	ImGui::Begin("Engine Log", &bIsOpen);
+	ImGui::Begin("Engine Log", &bIsActive);
 
-	if (!bIsOpen)
+	if (!bIsActive)
 	{
+		SetActiveState(false);
 		ImGui::End();
 		return false;
 	}
@@ -130,12 +133,12 @@ bool FImGuiEngineLogImpl::Tick()
 	return true;
 }
 
-UImGuiEngineLog::~UImGuiEngineLog()
+UImGuiEngineOutputLog::~UImGuiEngineOutputLog()
 {
 	delete Impl;
 }
 
-bool UImGuiEngineLog::HasInstance(const UObject* ContextObject)
+bool UImGuiEngineOutputLog::HasInstance(const UObject* ContextObject)
 {
 	check(IsValid(ContextObject));
 	
@@ -160,7 +163,7 @@ bool UImGuiEngineLog::HasInstance(const UObject* ContextObject)
 	return true;
 }
 
-UImGuiEngineLog::ThisClass& UImGuiEngineLog::Get(const UObject* ContextObject)
+UImGuiEngineOutputLog::ThisClass& UImGuiEngineOutputLog::Get(const UObject* ContextObject)
 {
 	check(IsValid(ContextObject));
 	
@@ -177,7 +180,7 @@ UImGuiEngineLog::ThisClass& UImGuiEngineLog::Get(const UObject* ContextObject)
 	return ThisSubsystemRef;
 }
 
-void UImGuiEngineLog::Initialize(FSubsystemCollectionBase& Collection)
+void UImGuiEngineOutputLog::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
@@ -185,14 +188,14 @@ void UImGuiEngineLog::Initialize(FSubsystemCollectionBase& Collection)
 	Impl->LogBuffer = Cast<UImGuiOutputLogBuffer>(Collection.InitializeDependency(UImGuiOutputLogBuffer::StaticClass()));
 }
 
-void UImGuiEngineLog::Deinitialize()
+void UImGuiEngineOutputLog::Deinitialize()
 {
 	Super::Deinitialize();
 
 	Impl->SetActiveState(false);
 }
 
-void UImGuiEngineLog::Tick(float DeltaSeconds)
+void UImGuiEngineOutputLog::Tick(float DeltaSeconds)
 {
 	if (LastFrameNumberWeTicked == GFrameCounter)
 	{
@@ -207,47 +210,47 @@ void UImGuiEngineLog::Tick(float DeltaSeconds)
 	}
 }
 
-ETickableTickType UImGuiEngineLog::GetTickableTickType() const
+ETickableTickType UImGuiEngineOutputLog::GetTickableTickType() const
 {
 	return ETickableTickType::Conditional;
 }
 
-TStatId UImGuiEngineLog::GetStatId() const
+TStatId UImGuiEngineOutputLog::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FImGuiEngineLog, STATGROUP_Tickables);
 }
 
-bool UImGuiEngineLog::IsTickable() const
+bool UImGuiEngineOutputLog::IsTickable() const
 {
 	return Impl && Impl->bIsActive;
 }
 
-bool UImGuiEngineLog::IsTickableWhenPaused() const
+bool UImGuiEngineOutputLog::IsTickableWhenPaused() const
 {
 	return true;
 }
 
-bool UImGuiEngineLog::IsTickableInEditor() const
+bool UImGuiEngineOutputLog::IsTickableInEditor() const
 {
 	return false;
 }
 
-void UImGuiEngineLog::SetActiveState(bool bInIsActive)
+void UImGuiEngineOutputLog::SetActiveState(bool bInIsActive)
 {
 	Impl->SetActiveState(bInIsActive);
 }
 
-void UImGuiEngineLog::SetDisplayedElements(EMessageElement Elements)
+void UImGuiEngineOutputLog::SetDisplayedElements(EMessageElement Elements)
 {
 	Impl->SetDisplayedElements(Elements);
 }
 
-void UImGuiEngineLog::AddDisplayedElements(EMessageElement Elements)
+void UImGuiEngineOutputLog::AddDisplayedElements(EMessageElement Elements)
 {
 	Impl->AddDisplayedElements(Elements);
 }
 
-void UImGuiEngineLog::RemovedDisplayedElements(EMessageElement Elements)
+void UImGuiEngineOutputLog::RemovedDisplayedElements(EMessageElement Elements)
 {
 	Impl->RemovedDisplayedElements(Elements);
 }
@@ -255,9 +258,15 @@ void UImGuiEngineLog::RemovedDisplayedElements(EMessageElement Elements)
 void FImGuiEngineLogImpl::SetActiveState(bool bInIsActive)
 {
 	bIsActive = bInIsActive;
+	
+	const auto* Settings = GetDefault<UImGuiEngineOutputLogSettings>();
+	if (Settings->bEnabledInputOnActive)
+	{
+		GetImGuiModule().SetInputMode(bIsActive);
+	}
 }
 
-void FImGuiEngineLogImpl::SetDisplayedElements(UImGuiEngineLog::EMessageElement Elements)
+void FImGuiEngineLogImpl::SetDisplayedElements(UImGuiEngineOutputLog::EMessageElement Elements)
 {
 	if (ActiveElements != Elements)
 	{
@@ -266,7 +275,7 @@ void FImGuiEngineLogImpl::SetDisplayedElements(UImGuiEngineLog::EMessageElement 
 	}
 }
 
-void FImGuiEngineLogImpl::AddDisplayedElements(UImGuiEngineLog::EMessageElement Elements)
+void FImGuiEngineLogImpl::AddDisplayedElements(UImGuiEngineOutputLog::EMessageElement Elements)
 {
 	if (ActiveElements | Elements)
 	{
@@ -275,13 +284,18 @@ void FImGuiEngineLogImpl::AddDisplayedElements(UImGuiEngineLog::EMessageElement 
 	}
 }
 
-void FImGuiEngineLogImpl::RemovedDisplayedElements(UImGuiEngineLog::EMessageElement Elements)
+void FImGuiEngineLogImpl::RemovedDisplayedElements(UImGuiEngineOutputLog::EMessageElement Elements)
 {
 	if (ActiveElements & ~Elements)
 	{
 		ActiveElements &= ~Elements;
 		bElementsDirty = true;
 	}
+}
+
+FImGuiModule& FImGuiEngineLogImpl::GetImGuiModule() const
+{
+	return *static_cast<FImGuiModule*>(FModuleManager::Get().GetModule("ImGui"));
 }
 
 void FImGuiEngineLogImpl::AddNewMessages()
@@ -371,15 +385,20 @@ static ImU32 DefaultVerbosityToColor(EImGuiLogVerbosity Verbosity)
 
 ImU32 FImGuiEngineLogImpl::VerbosityToColor(EImGuiLogVerbosity Verbosity)
 {
-	const auto* Settings = GetDefault<UImGuiEngineLogSettings>();
+	const auto* Settings = GetDefault<UImGuiEngineOutputLogSettings>();
 	const FLinearColor* FoundColor = Settings->Colors.Find(Verbosity);
 	return FoundColor ? ColorToU32(*FoundColor) : DefaultVerbosityToColor(Verbosity);
 }
 
-UImGuiEngineLogSettings::UImGuiEngineLogSettings()
+UImGuiEngineOutputLogSettings::UImGuiEngineOutputLogSettings()
 {
 	for (const auto Verbosity : TEnumRange<EImGuiLogVerbosity>())
 	{
 		Colors.Add(Verbosity, U32ToColor(DefaultVerbosityToColor(Verbosity)));
 	}
+}
+
+FName UImGuiEngineOutputLogSettings::GetCategoryName() const
+{
+	return "Plugins";
 }
