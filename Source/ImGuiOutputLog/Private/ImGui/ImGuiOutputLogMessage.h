@@ -12,6 +12,7 @@ public:
 public:
 	char* Text = nullptr;
 	int32 TextLen = 0;
+	TArray<int32> LineOffsets;
 
 	char* Category = nullptr;
 	int32 CategoryLen = 0;
@@ -21,7 +22,7 @@ public:
 	char* FormattedText = nullptr;
 	int32 FormattedTextLen = 0;
 
-	double Timestamp = 0.0;
+	FDateTime Timestamp;
 	bool bIsFilteredOut = false;
 };
 

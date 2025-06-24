@@ -7,7 +7,7 @@
 UENUM()
 enum class EImGuiLogVerbosity : uint8
 {
-	Fatal,
+	Fatal = ELogVerbosity::Type::Fatal,
 	Error,
 	Warning,
 	Display,

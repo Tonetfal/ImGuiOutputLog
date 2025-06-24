@@ -7,6 +7,15 @@
 
 #include "ImGuiEngineOutputLog.generated.h"
 
+UENUM(BlueprintType, meta=(BitFlags, UseEnumValuesAsMaskValuesInEditor="True"))
+enum EImGuiOutputLogMessageElement : uint8
+{
+	None		= 0 UMETA(Hidden),
+	Category	= 1 << 0,
+	Timestamp	= 1 << 1,
+	Verbosity	= 1 << 2,
+};
+
 UCLASS(DisplayName="ImGui Engine Output Log")
 class IMGUIOUTPUTLOG_API UImGuiEngineOutputLog
 	: public UGameInstanceSubsystem
@@ -15,12 +24,6 @@ class IMGUIOUTPUTLOG_API UImGuiEngineOutputLog
 	GENERATED_BODY()
 
 public:
-	enum EMessageElement : uint8
-	{
-		Category = 1 << 0,
-		Timestamp = 1 << 1,
-		Verbosity = 1 << 2,
-	};
 
 public:
 	virtual ~UImGuiEngineOutputLog() override;
@@ -45,9 +48,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log")
 	void SetActiveState(UPARAM(DisplayName="Is Active") bool bInIsActive);
 	
-	void SetDisplayedElements(EMessageElement Elements);
-	void AddDisplayedElements(EMessageElement Elements);
-	void RemovedDisplayedElements(EMessageElement Elements);
+	UFUNCTION(BlueprintPure, Category="ImGui|Engine Log")
+	bool IsActive() const;
+
+	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log",
+		meta=(Bitmask, BitmaskEnum="EImGuiOutputLogMessageElement"))
+	void SetDisplayedElements(TEnumAsByte<EImGuiOutputLogMessageElement> Elements);
+	
+	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log",
+		meta=(Bitmask, BitmaskEnum="EImGuiOutputLogMessageElement"))
+	void AddDisplayedElements(TEnumAsByte<EImGuiOutputLogMessageElement> Elements);
+	
+	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log",
+		meta=(Bitmask, BitmaskEnum="EImGuiOutputLogMessageElement"))
+	void RemovedDisplayedElements(TEnumAsByte<EImGuiOutputLogMessageElement> Elements);
+	
+	UFUNCTION(BlueprintPure, Category="ImGui|Engine Log")
+	TEnumAsByte<EImGuiOutputLogMessageElement> GetDisplayedElements() const;
 
 public:
 	FSimpleMulticastDelegate OnClosedDelegate;

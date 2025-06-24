@@ -106,12 +106,14 @@ bool FImGuiOutputLogFilter::DrawCategoryFilters()
 		if (ImGui::BeginMenu("Categories"))
 		{
 			CategoryFilter.Draw("", "Start typing to search");
+			ImGui::BeginChild("CategoriesChild", ImVec2(0.f, 400.f), ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
 			for (auto& [Category, bIsEnabled] : Context.Categories)
 			{
 				if (!CategoryFilter.IsActive() || CategoryFilter.PassFilter(Category))
 				{
 					const bool bPreviousEnabled = bIsEnabled;
+
 					bHasChanged |= ImGui::MenuItem(Category, "", &bIsEnabled);
 
 					if (bIsEnabled != bPreviousEnabled)
@@ -120,7 +122,8 @@ bool FImGuiOutputLogFilter::DrawCategoryFilters()
 					}
 				}
 			}
-
+			
+			ImGui::EndChild();
 			ImGui::EndMenu();
 		}
 		else

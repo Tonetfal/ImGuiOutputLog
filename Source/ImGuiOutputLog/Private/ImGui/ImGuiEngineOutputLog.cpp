@@ -14,33 +14,48 @@ public:
 	FImGuiEngineLogImpl();
 
 	bool Tick();
-	
+
 	void AddNewMessages();
 	void AddMessage(const ImGui::Private::TMessageRef Message);
 
-	void DrawMessage(const ImGui::Private::TMessageRef Message) const;
+	bool DrawVerbosities();
+	void DrawAllMessages();
+	
+	void DrawMessage(int32 Index) const;
 	void FormatMessage(ImGui::Private::TMessageRef Message) const;
 
+	void ValidateMessages();
 	void Clear();
 
-	static ImU32 VerbosityToColor(EImGuiLogVerbosity Verbosity);
+	void TryFilteringMessage(int32 Index);
+	void FilterAllMessages();
 
-public:	
+	int32 MessageToLine(int32 MessageIndex) const;
+	static ImU32 VerbosityToColor(EImGuiLogVerbosity Verbosity);
+	static const char* VerbosityToString(EImGuiLogVerbosity Verbosity);
+
+public:
+	bool IsActive() const;
 	void SetActiveState(bool bInIsActive);
-	void SetDisplayedElements(UImGuiEngineOutputLog::EMessageElement Elements);
-	void AddDisplayedElements(UImGuiEngineOutputLog::EMessageElement Elements);
-	void RemovedDisplayedElements(UImGuiEngineOutputLog::EMessageElement Elements);
+	void SetDisplayedElements(EImGuiOutputLogMessageElement Elements);
+	void AddDisplayedElements(EImGuiOutputLogMessageElement Elements);
+	void RemovedDisplayedElements(EImGuiOutputLogMessageElement Elements);
+	EImGuiOutputLogMessageElement GetDisplayedElements() const;
 
 	FImGuiModule& GetImGuiModule() const;
 
 public:
 	UImGuiOutputLogBuffer* LogBuffer = nullptr;
-		
+
 	bool bIsActive = false;
-	uint8 ActiveElements = UImGuiEngineOutputLog::EMessageElement::Category;
+	uint8 ActiveElements = EImGuiOutputLogMessageElement::Category;
 	bool bElementsDirty = true;
+	bool bFiltersDirty = true;
 
 	TArray<ImGui::Private::TMessageRef> Messages;
+	TArray<TPair<ImGui::Private::TMessageRef, int32>> MultiLineMessages;
+	TArray<int32> FilteredToNormal;
+	int32 LinesOfText = 0;
 	FImGuiOutputLogFilter Filter;
 	int32 LastOutputLogIndex = INDEX_NONE;
 };
@@ -62,72 +77,37 @@ bool FImGuiEngineLogImpl::Tick()
 		return false;
 	}
 
-	AddNewMessages();
-
-	if (bElementsDirty)
+	ImGui::SameLine();
+	if (Filter.Draw())
 	{
-		for (ImGui::Private::TMessageRef Message : Messages)
-		{
-			FormatMessage(Message);
-		}
+		bFiltersDirty = true;
+	}
+
+	if (bFiltersDirty)
+	{
+		FilteredToNormal.Empty();
+		LinesOfText = 0;
+	}
+	
+	ImGui::SameLine();
+	if (DrawVerbosities())
+	{
+		bElementsDirty = true;
 	}
 
 	ImGui::SameLine();
-	const bool bHaveFiltersChanged = Filter.Draw();
-
-	ImGui::SameLine();
-	const bool bClear = ImGui::Button("Clear");
+	if (ImGui::Button("Clear"))
+	{
+		Clear();
+	}
 
 	ImGui::Separator();
 
-	if (ImGui::BeginChild("scrolling", ImVec2(0, 0.f), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
-	{
-		if (bClear)
-		{
-			Clear();
-		}
+	AddNewMessages();
+	ValidateMessages();
+	
+	DrawAllMessages();
 
-		if (Filter.IsActive())
-		{
-			// @todo clipper?
-			for (ImGui::Private::TMessageRef Message : Messages)
-			{
-				if (bHaveFiltersChanged)
-				{
-					Message->bIsFilteredOut = !Filter.PassFilter(Message);
-				}
-
-				if (!Message->bIsFilteredOut)
-				{
-					DrawMessage(Message);
-				}
-			}
-		}
-		else
-		{
-			ImGuiListClipper Clipper;
-			Clipper.Begin(Messages.Num());
-
-			while (Clipper.Step())
-			{
-				for (int32 Idx = Clipper.DisplayStart; Idx < Clipper.DisplayEnd; Idx++)
-				{
-					DrawMessage(Messages[Idx]);
-				}
-			}
-
-			Clipper.End();
-		}
-
-		// Keep up at the bottom of the scroll region if we were already at the bottom at the beginning of the frame.
-		// Using a scrollbar or mouse-wheel will take away from the bottom edge.
-		if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-		{
-			ImGui::SetScrollHereY(1.0f);
-		}
-	}
-
-	ImGui::EndChild();
 	ImGui::End();
 
 	return true;
@@ -141,41 +121,41 @@ UImGuiEngineOutputLog::~UImGuiEngineOutputLog()
 bool UImGuiEngineOutputLog::HasInstance(const UObject* ContextObject)
 {
 	check(IsValid(ContextObject));
-	
+
 	const UWorld* World = ContextObject->GetWorld();
 	if (!IsValid(World))
 	{
 		return false;
 	}
-	
+
 	const UGameInstance* GameInstance = World->GetGameInstance();
 	if (!IsValid(GameInstance))
 	{
 		return false;
 	}
-	
+
 	const auto* ThisSubsystem = GameInstance->GetSubsystem<ThisClass>();
 	if (!IsValid(ThisSubsystem))
 	{
 		return false;
 	}
-	
+
 	return true;
 }
 
 UImGuiEngineOutputLog::ThisClass& UImGuiEngineOutputLog::Get(const UObject* ContextObject)
 {
 	check(IsValid(ContextObject));
-	
+
 	const UWorld* World = ContextObject->GetWorld();
 	check(IsValid(World));
-	
+
 	const UGameInstance* GameInstance = World->GetGameInstance();
 	check(IsValid(GameInstance));
-	
+
 	auto* ThisSubsystem = GameInstance->GetSubsystem<ThisClass>();
 	check(IsValid(ThisSubsystem));
-	
+
 	auto& ThisSubsystemRef = *ThisSubsystem;
 	return ThisSubsystemRef;
 }
@@ -240,25 +220,40 @@ void UImGuiEngineOutputLog::SetActiveState(bool bInIsActive)
 	Impl->SetActiveState(bInIsActive);
 }
 
-void UImGuiEngineOutputLog::SetDisplayedElements(EMessageElement Elements)
+bool UImGuiEngineOutputLog::IsActive() const
+{
+	return Impl->IsActive();
+}
+
+void UImGuiEngineOutputLog::SetDisplayedElements(TEnumAsByte<EImGuiOutputLogMessageElement> Elements)
 {
 	Impl->SetDisplayedElements(Elements);
 }
 
-void UImGuiEngineOutputLog::AddDisplayedElements(EMessageElement Elements)
+void UImGuiEngineOutputLog::AddDisplayedElements(TEnumAsByte<EImGuiOutputLogMessageElement> Elements)
 {
 	Impl->AddDisplayedElements(Elements);
 }
 
-void UImGuiEngineOutputLog::RemovedDisplayedElements(EMessageElement Elements)
+void UImGuiEngineOutputLog::RemovedDisplayedElements(TEnumAsByte<EImGuiOutputLogMessageElement> Elements)
 {
 	Impl->RemovedDisplayedElements(Elements);
+}
+
+TEnumAsByte<EImGuiOutputLogMessageElement> UImGuiEngineOutputLog::GetDisplayedElements() const
+{
+	return Impl->GetDisplayedElements();
+}
+
+bool FImGuiEngineLogImpl::IsActive() const
+{
+	return bIsActive;
 }
 
 void FImGuiEngineLogImpl::SetActiveState(bool bInIsActive)
 {
 	bIsActive = bInIsActive;
-	
+
 	const auto* Settings = GetDefault<UImGuiEngineOutputLogSettings>();
 	if (Settings->bEnabledInputOnActive)
 	{
@@ -266,7 +261,7 @@ void FImGuiEngineLogImpl::SetActiveState(bool bInIsActive)
 	}
 }
 
-void FImGuiEngineLogImpl::SetDisplayedElements(UImGuiEngineOutputLog::EMessageElement Elements)
+void FImGuiEngineLogImpl::SetDisplayedElements(EImGuiOutputLogMessageElement Elements)
 {
 	if (ActiveElements != Elements)
 	{
@@ -275,7 +270,7 @@ void FImGuiEngineLogImpl::SetDisplayedElements(UImGuiEngineOutputLog::EMessageEl
 	}
 }
 
-void FImGuiEngineLogImpl::AddDisplayedElements(UImGuiEngineOutputLog::EMessageElement Elements)
+void FImGuiEngineLogImpl::AddDisplayedElements(EImGuiOutputLogMessageElement Elements)
 {
 	if (ActiveElements | Elements)
 	{
@@ -284,13 +279,18 @@ void FImGuiEngineLogImpl::AddDisplayedElements(UImGuiEngineOutputLog::EMessageEl
 	}
 }
 
-void FImGuiEngineLogImpl::RemovedDisplayedElements(UImGuiEngineOutputLog::EMessageElement Elements)
+void FImGuiEngineLogImpl::RemovedDisplayedElements(EImGuiOutputLogMessageElement Elements)
 {
 	if (ActiveElements & ~Elements)
 	{
 		ActiveElements &= ~Elements;
 		bElementsDirty = true;
 	}
+}
+
+EImGuiOutputLogMessageElement FImGuiEngineLogImpl::GetDisplayedElements() const
+{
+	return static_cast<EImGuiOutputLogMessageElement>(ActiveElements);
 }
 
 FImGuiModule& FImGuiEngineLogImpl::GetImGuiModule() const
@@ -311,13 +311,27 @@ void FImGuiEngineLogImpl::AddNewMessages()
 
 void FImGuiEngineLogImpl::AddMessage(const ImGui::Private::TMessageRef Message)
 {
+	const int32 Index = Messages.Num();
 	auto& Ref = Messages.Add_GetRef(Message);
+
+	const int32 Lines = Ref->LineOffsets.Num();
+	for (int32 i = 0; i < Lines; ++i)
+	{
+		MultiLineMessages.Add({ Ref,i });
+	}
+
 	if (!bElementsDirty)
 	{
 		FormatMessage(Ref);
+		if (Filter.IsActive())
+		{
+			TryFilteringMessage(MultiLineMessages.Num() - Lines);
+		}
+		else
+		{
+			LinesOfText += Lines;
+		}
 	}
-
-	Ref->bIsFilteredOut = !Filter.PassFilter(Ref);
 
 	bool bIsCategoryPresent = false;
 	for (const auto& [Category, _] : Filter.Context.Categories)
@@ -335,26 +349,252 @@ void FImGuiEngineLogImpl::AddMessage(const ImGui::Private::TMessageRef Message)
 	}
 }
 
-void FImGuiEngineLogImpl::DrawMessage(const ImGui::Private::TMessageRef Message) const
+bool FImGuiEngineLogImpl::DrawVerbosities()
 {
+	if (ImGui::Button("Verbosities"))
+	{
+		ImGui::OpenPopup("VerbositiesPopup");
+	}
+
+	bool bHasChanged = false;
+	if (ImGui::BeginPopup("VerbositiesPopup"))
+	{
+		ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
+
+		ImGui::SeparatorText("Verbosities");
+
+		bool bShowCategory = ActiveElements & Category;
+		bHasChanged |= ImGui::MenuItem("Category", "", &bShowCategory);
+		ActiveElements = bShowCategory ? ActiveElements | Category : ActiveElements & ~Category;
+
+		bool bShowVerbosity = ActiveElements & Verbosity;
+		bHasChanged |= ImGui::MenuItem("Verbosity", "", &bShowVerbosity);
+		ActiveElements = bShowVerbosity ? ActiveElements | Verbosity : ActiveElements & ~Verbosity;
+		
+		bool bShowTimestamp = ActiveElements & Timestamp;
+		bHasChanged |= ImGui::MenuItem("Timestamp", "", &bShowTimestamp);
+		ActiveElements = bShowTimestamp ? ActiveElements | Timestamp : ActiveElements & ~Timestamp;
+
+		ImGui::PopItemFlag();
+		ImGui::EndPopup();
+	}
+
+	return bHasChanged;
+}
+
+void FImGuiEngineLogImpl::DrawAllMessages()
+{
+	if (ImGui::BeginChild("scrolling", ImVec2(0, 0.f), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
+	{
+		if (Filter.IsActive())
+		{
+			if (bFiltersDirty)
+			{
+				FilterAllMessages();
+			}
+
+			ImGuiListClipper Clipper;
+			Clipper.Begin(LinesOfText);
+
+			while (Clipper.Step())
+			{
+				for (int32 Idx = Clipper.DisplayStart; Idx < Clipper.DisplayEnd; Idx++)
+				{
+					DrawMessage(FilteredToNormal[Idx]);
+					
+				}
+			}
+
+			Clipper.End();
+		}
+		else
+		{
+			ImGuiListClipper Clipper;
+			Clipper.Begin(LinesOfText);
+
+			while (Clipper.Step())
+			{
+				for (int32 Idx = Clipper.DisplayStart; Idx < Clipper.DisplayEnd; Idx++)
+				{
+					DrawMessage(Idx);
+				}
+			}
+
+			Clipper.End();
+		}
+
+		// Keep up at the bottom of the scroll region if we were already at the bottom at the beginning of the frame.
+		// Using a scrollbar or mouse-wheel will take away from the bottom edge.
+		if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+		{
+			ImGui::SetScrollHereY(1.0f);
+		}
+	}
+	
+	ImGui::EndChild();
+}
+
+void FImGuiEngineLogImpl::DrawMessage(int32 Index) const
+{
+	auto Message = MultiLineMessages[Index].Key;
+	const int32 OffsetIndex = MultiLineMessages[Index].Value;
+
 	ImGui::PushStyleColor(ImGuiCol_Text, VerbosityToColor(Message->Verbosity));
-	ImGui::TextUnformatted(Message->FormattedText, Message->FormattedText + Message->FormattedTextLen);
+
+	// ImGui::TextUnformatted can't render multi-line texts correctly, so we render each line manually;
+	// this is why there's way more code compared to what it could've been
+
+	int32 Offset = OffsetIndex > 0 ? 1 : 0;
+	for (int32 i = 0; i < OffsetIndex; ++i)
+	{
+		Offset += Message->LineOffsets[i];
+	}
+	
+	const int32 LineLength = Message->LineOffsets[OffsetIndex];
+	const char* Begin = Message->FormattedText + Offset;
+	const char* End = Message->FormattedText + Offset + LineLength - OffsetIndex;
+	ImGui::TextUnformatted(Begin, End);
+
 	ImGui::PopStyleColor();
 }
 
-// @todo allow custom formatting, e.g. show/hide timestamp, show/hide category, show/hide verbosity
 void FImGuiEngineLogImpl::FormatMessage(ImGui::Private::TMessageRef Message) const
 {
-	Message->FormattedTextLen = Message->CategoryLen + Message->TextLen + 2;
+	free(Message->FormattedText);
+	
+	// The format must NOT introduce any new newlines!
 
-	const size_t ToAllocate = Message->FormattedTextLen + 1;
+	// Timestamp Verbosity Category Message
+	char Fmt[16] = "";
+	const char* ToAppend[3] { "", "", "" };
+	int32 ToAllocate = Message->TextLen;
+	if (ActiveElements & Timestamp)
+	{
+		static const FString TimestampString = Message->Timestamp.ToString();
+		ToAppend[0] = TCHAR_TO_ANSI(*TimestampString);
+		ToAllocate += TimestampString.Len() + 1;
+		strcat_s(Fmt, "%s ");
+	}
+	else
+	{
+		strcat_s(Fmt, "%s");
+	}
+	
+	if (ActiveElements & Verbosity)
+	{
+		ToAppend[1] = VerbosityToString(Message->Verbosity);
+		ToAllocate += ImStrlen(ToAppend[1]) + 1;
+		strcat_s(Fmt, "%s ");
+	}
+	else
+	{
+		strcat_s(Fmt, "%s");
+	}
+	
+	if (ActiveElements & Category)
+	{
+		ToAppend[2] = Message->Category;
+		ToAllocate += Message->CategoryLen + 1;
+		strcat_s(Fmt, "%s ");
+	}
+	else
+	{
+		strcat_s(Fmt, "%s");
+	}
+	
+	strcat_s(Fmt, "%s"); // Actual text
+	ToAllocate++; // \0
+	
+	Message->FormattedTextLen = ToAllocate - 1;
 	Message->FormattedText = static_cast<char*>(IM_ALLOC(ToAllocate));
-	sprintf_s(Message->FormattedText, ToAllocate, "%s: %s", Message->Category, Message->Text);
+	sprintf_s(Message->FormattedText, ToAllocate, Fmt, ToAppend[0], ToAppend[1], ToAppend[2], Message->Text);
+
+	int32 i = 0;
+	for (; Message->FormattedText[i] != '\0'; ++i)
+	{
+		if (Message->FormattedText[i] == '\n')
+		{
+			break;
+		}
+	}
+
+	Message->LineOffsets[0] = i;
+}
+
+void FImGuiEngineLogImpl::ValidateMessages()
+{
+	if (bElementsDirty)
+	{
+		const int32 Num = Messages.Num();
+		for (int32 i = 0; i < Num; ++i)
+		{
+			auto Message = Messages[i];
+
+			FormatMessage(Message);
+			if (!bFiltersDirty && Filter.IsActive())
+			{
+				TryFilteringMessage(MessageToLine(i));
+			}
+			else
+			{
+				LinesOfText += Message->LineOffsets.Num();
+			}
+		}
+
+		bElementsDirty = false;
+	}
+
+	if (!Filter.IsActive() && LinesOfText == 0)
+	{
+		LinesOfText = MultiLineMessages.Num();
+	}
 }
 
 void FImGuiEngineLogImpl::Clear()
 {
 	Messages.Empty();
+	MultiLineMessages.Empty();
+	FilteredToNormal.Empty();
+	LinesOfText = 0;
+}
+
+void FImGuiEngineLogImpl::TryFilteringMessage(int32 Index)
+{
+	auto Message = MultiLineMessages[Index].Key;
+	Message->bIsFilteredOut = !Filter.PassFilter(Message);
+
+	if (!Message->bIsFilteredOut)
+	{
+		FilteredToNormal.Add(Index);
+		LinesOfText++;
+	}
+}
+
+void FImGuiEngineLogImpl::FilterAllMessages()
+{
+	const int32 Num = Messages.Num();
+	for (int32 i = 0; i < Num; ++i)
+	{
+		TryFilteringMessage(MessageToLine(i));
+	}
+}
+
+int32 FImGuiEngineLogImpl::MessageToLine(int32 MessageIndex) const
+{
+	int32 Count = 0;
+	for (const auto& Message : Messages)
+	{
+		const int32 Lines = Message->LineOffsets.Num();
+		Count += Lines;
+
+		if (Count > MessageIndex)
+		{
+			return Count - Lines;
+		}
+	}
+
+	checkNoEntry();
+	return INDEX_NONE;
 }
 
 static ImU32 ColorToU32(const FLinearColor& Color)
@@ -388,6 +628,21 @@ ImU32 FImGuiEngineLogImpl::VerbosityToColor(EImGuiLogVerbosity Verbosity)
 	const auto* Settings = GetDefault<UImGuiEngineOutputLogSettings>();
 	const FLinearColor* FoundColor = Settings->Colors.Find(Verbosity);
 	return FoundColor ? ColorToU32(*FoundColor) : DefaultVerbosityToColor(Verbosity);
+}
+
+const char* FImGuiEngineLogImpl::VerbosityToString(EImGuiLogVerbosity Verbosity)
+{
+	switch (Verbosity)
+	{
+	case EImGuiLogVerbosity::Verbose: return "Verbose";
+	case EImGuiLogVerbosity::VeryVerbose: return "Very Verbose";
+	case EImGuiLogVerbosity::Log: return "Log";
+	case EImGuiLogVerbosity::Display: return "Display";
+	case EImGuiLogVerbosity::Warning: return "Warning";
+	case EImGuiLogVerbosity::Error: return "Error";
+	case EImGuiLogVerbosity::Fatal: return "Fatal";
+	default: return "Invalid";
+	}
 }
 
 UImGuiEngineOutputLogSettings::UImGuiEngineOutputLogSettings()
