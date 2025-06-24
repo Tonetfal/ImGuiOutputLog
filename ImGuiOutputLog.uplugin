@@ -1,0 +1,33 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "ImGui Output Log",
+	"Description": "Unreal Engine native output log, but in Dear ImGui",
+	"Category": "",
+	"CreatedBy": "Tonetfal",
+	"CreatedByURL": "https://github.com/Tonetfal",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "ImGuiOutputLog",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"ImGui"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "ImGui",
+			"Enabled": true
+		}
+	]
+}
+
