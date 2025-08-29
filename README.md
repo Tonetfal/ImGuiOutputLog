@@ -1,6 +1,6 @@
 ﻿# ImGui Output Log
 
-Unreal Engine's native output log, but made with Dear ImGui.
+Unreal Engine's native output log, but using Dear ImGui.
 
 ## Installation
 

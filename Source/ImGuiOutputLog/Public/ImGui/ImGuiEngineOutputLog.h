@@ -24,10 +24,8 @@ class IMGUIOUTPUTLOG_API UImGuiEngineOutputLog
 	GENERATED_BODY()
 
 public:
-
-public:
 	virtual ~UImGuiEngineOutputLog() override;
-	
+
 	static bool HasInstance(const UObject* ContextObject);
 	static ThisClass& Get(const UObject* ContextObject);
 
@@ -47,19 +45,19 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log")
 	void SetActiveState(UPARAM(DisplayName="Is Active") bool bInIsActive);
-	
+
 	UFUNCTION(BlueprintPure, Category="ImGui|Engine Log")
 	bool IsActive() const;
 
 	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log")
 	void SetDisplayedElements(UPARAM(meta=(Bitmask, BitmaskEnum="EImGuiOutputLogMessageElement")) int32 Elements);
-	
+
 	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log")
 	void AddDisplayedElements(UPARAM(meta=(Bitmask, BitmaskEnum="EImGuiOutputLogMessageElement")) int32 Elements);
-	
+
 	UFUNCTION(BlueprintCallable, Category="ImGui|Engine Log")
 	void RemovedDisplayedElements(UPARAM(meta=(Bitmask, BitmaskEnum="EImGuiOutputLogMessageElement")) int32 Elements);
-	
+
 	UFUNCTION(BlueprintPure, Category="ImGui|Engine Log")
 	TEnumAsByte<EImGuiOutputLogMessageElement> GetDisplayedElements() const;
 
@@ -87,7 +85,7 @@ public:
 public:
 	UPROPERTY(Config, EditAnywhere)
 	TMap<EImGuiLogVerbosity, FLinearColor> Colors;
-	
+
 	UPROPERTY(Config, EditAnywhere)
 	bool bEnabledInputOnActive = true;
 };

@@ -20,7 +20,7 @@ public:
 
 	bool DrawVerbosities();
 	void DrawAllMessages();
-	
+
 	void DrawMessage(int32 Index) const;
 	void FormatMessage(ImGui::Private::TMessageRef Message) const;
 
@@ -68,6 +68,7 @@ FImGuiEngineLogImpl::FImGuiEngineLogImpl()
 
 bool FImGuiEngineLogImpl::Tick()
 {
+	ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_FirstUseEver);
 	ImGui::Begin("Engine Log", &bIsActive);
 
 	if (!bIsActive)
@@ -88,7 +89,7 @@ bool FImGuiEngineLogImpl::Tick()
 		FilteredToNormal.Empty();
 		LinesOfText = 0;
 	}
-	
+
 	ImGui::SameLine();
 	if (DrawVerbosities())
 	{
@@ -105,7 +106,7 @@ bool FImGuiEngineLogImpl::Tick()
 
 	AddNewMessages();
 	ValidateMessages();
-	
+
 	DrawAllMessages();
 
 	ImGui::End();
@@ -370,7 +371,7 @@ bool FImGuiEngineLogImpl::DrawVerbosities()
 		bool bShowVerbosity = ActiveElements & Verbosity;
 		bHasChanged |= ImGui::MenuItem("Verbosity", "", &bShowVerbosity);
 		ActiveElements = bShowVerbosity ? ActiveElements | Verbosity : ActiveElements & ~Verbosity;
-		
+
 		bool bShowTimestamp = ActiveElements & Timestamp;
 		bHasChanged |= ImGui::MenuItem("Timestamp", "", &bShowTimestamp);
 		ActiveElements = bShowTimestamp ? ActiveElements | Timestamp : ActiveElements & ~Timestamp;
@@ -401,7 +402,7 @@ void FImGuiEngineLogImpl::DrawAllMessages()
 				for (int32 Idx = Clipper.DisplayStart; Idx < Clipper.DisplayEnd; Idx++)
 				{
 					DrawMessage(FilteredToNormal[Idx]);
-					
+
 				}
 			}
 
@@ -430,7 +431,7 @@ void FImGuiEngineLogImpl::DrawAllMessages()
 			ImGui::SetScrollHereY(1.0f);
 		}
 	}
-	
+
 	ImGui::EndChild();
 }
 
@@ -449,7 +450,7 @@ void FImGuiEngineLogImpl::DrawMessage(int32 Index) const
 	{
 		Offset += Message->LineOffsets[i];
 	}
-	
+
 	const int32 LineLength = Message->LineOffsets[OffsetIndex];
 	const char* Begin = Message->FormattedText + Offset;
 	const char* End = Message->FormattedText + Offset + LineLength - OffsetIndex;
@@ -461,7 +462,7 @@ void FImGuiEngineLogImpl::DrawMessage(int32 Index) const
 void FImGuiEngineLogImpl::FormatMessage(ImGui::Private::TMessageRef Message) const
 {
 	free(Message->FormattedText);
-	
+
 	// The format must NOT introduce any new newlines!
 
 	// Timestamp Verbosity Category Message
@@ -479,7 +480,7 @@ void FImGuiEngineLogImpl::FormatMessage(ImGui::Private::TMessageRef Message) con
 	{
 		strcat_s(Fmt, "%s");
 	}
-	
+
 	if (ActiveElements & Verbosity)
 	{
 		ToAppend[1] = VerbosityToString(Message->Verbosity);
@@ -490,10 +491,13 @@ void FImGuiEngineLogImpl::FormatMessage(ImGui::Private::TMessageRef Message) con
 	{
 		strcat_s(Fmt, "%s");
 	}
-	
+
 	if (ActiveElements & Category)
 	{
+		ensure(ToAppend[2]);
+		ensure(Message->Category);
 		ToAppend[2] = Message->Category;
+		ensure(ToAppend[2]);
 		ToAllocate += Message->CategoryLen + 1;
 		strcat_s(Fmt, "%s ");
 	}
@@ -501,10 +505,10 @@ void FImGuiEngineLogImpl::FormatMessage(ImGui::Private::TMessageRef Message) con
 	{
 		strcat_s(Fmt, "%s");
 	}
-	
+
 	strcat_s(Fmt, "%s"); // Actual text
 	ToAllocate++; // \0
-	
+
 	Message->FormattedTextLen = ToAllocate - 1;
 	Message->FormattedText = static_cast<char*>(IM_ALLOC(ToAllocate));
 	sprintf_s(Message->FormattedText, ToAllocate, Fmt, ToAppend[0], ToAppend[1], ToAppend[2], Message->Text);
