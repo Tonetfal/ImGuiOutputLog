@@ -4,7 +4,7 @@ Unreal Engine's native output log, but using Dear ImGui.
 
 ## Installation
 
-1) Install [UnrealImGui](https://github.com/segross/UnrealImGui).
+1) Install [UnrealImGui](https://github.com/IDI-Systems/UnrealImGui/).
 2) Clone the repository in your project's Plugin directory.
 
 ## Preview
